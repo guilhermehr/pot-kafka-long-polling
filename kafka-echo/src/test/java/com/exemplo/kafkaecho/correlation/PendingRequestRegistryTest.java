@@ -31,6 +31,17 @@ class PendingRequestRegistryTest {
     }
 
     @Test
+    void containsReflectsPendingState() {
+        assertThat(registry.contains("id-1")).isFalse();
+
+        registry.register("id-1", new DeferredResult<>());
+        assertThat(registry.contains("id-1")).isTrue();
+
+        registry.complete("id-1", "x");
+        assertThat(registry.contains("id-1")).isFalse();
+    }
+
+    @Test
     void completeUnknownIdReturnsFalse() {
         assertThat(registry.complete("missing", "x")).isFalse();
     }

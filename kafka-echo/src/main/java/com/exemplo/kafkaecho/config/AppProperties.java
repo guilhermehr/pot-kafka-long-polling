@@ -9,7 +9,10 @@ public record AppProperties(
         String instanceId,
         Kafka kafka,
         Request request,
-        TestDelay testDelay) {
+        TestDelay testDelay,
+        Listener listener,
+        Producer producer,
+        Shutdown shutdown) {
 
     public record Kafka(
             String topic,
@@ -26,5 +29,24 @@ public record AppProperties(
     }
 
     public record TestDelay(Duration producer, Duration consumer) {
+    }
+
+    /**
+     * @param batchParallelism máximo de eventos de um mesmo lote (poll) processados em paralelo
+     */
+    public record Listener(int batchParallelism) {
+    }
+
+    /**
+     * @param threads       threads do pool de publicação (fora das threads do Tomcat)
+     * @param queueCapacity tamanho da fila do pool; cheia = rejeição imediata (503)
+     */
+    public record Producer(int threads, int queueCapacity) {
+    }
+
+    /**
+     * @param drainTimeout tempo máximo aguardando requisições pendentes no encerramento
+     */
+    public record Shutdown(Duration drainTimeout) {
     }
 }

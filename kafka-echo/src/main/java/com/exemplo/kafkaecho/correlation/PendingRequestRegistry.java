@@ -21,6 +21,11 @@ public class PendingRequestRegistry {
         }
     }
 
+    /** @return true se ainda há requisição aguardando este id (não expirada, não concluída) */
+    public boolean contains(String correlationId) {
+        return pending.containsKey(correlationId);
+    }
+
     /**
      * Conclui a requisição com a mensagem recebida. {@code remove} é atômico: se o listener e o
      * timeout disputarem o mesmo id, apenas um deles obtém o DeferredResult.

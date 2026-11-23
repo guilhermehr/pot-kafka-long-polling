@@ -15,13 +15,30 @@ public final class TestProps {
     private TestProps() {
     }
 
-    public static AppProperties props(Duration producerDelay, Duration consumerDelay) {
+    public static AppProperties full(Duration producerDelay,
+                                     Duration consumerDelay,
+                                     int batchParallelism,
+                                     Duration requestTimeout,
+                                     int publisherThreads,
+                                     int publisherQueue,
+                                     Duration drainTimeout) {
         return new AppProperties(
                 INSTANCE.id(),
                 new AppProperties.Kafka(TOPIC, 3, 1, "echo-consumer",
                         new AppProperties.HeaderNames(CORRELATION_HEADER, INSTANCE_HEADER)),
-                new AppProperties.Request(Duration.ofSeconds(10)),
-                new AppProperties.TestDelay(producerDelay, consumerDelay));
+                new AppProperties.Request(requestTimeout),
+                new AppProperties.TestDelay(producerDelay, consumerDelay),
+                new AppProperties.Listener(batchParallelism),
+                new AppProperties.Producer(publisherThreads, publisherQueue),
+                new AppProperties.Shutdown(drainTimeout));
+    }
+
+    public static AppProperties props(Duration producerDelay, Duration consumerDelay, int batchParallelism) {
+        return full(producerDelay, consumerDelay, batchParallelism, Duration.ofSeconds(10), 8, 200, Duration.ofSeconds(1));
+    }
+
+    public static AppProperties props(Duration producerDelay, Duration consumerDelay) {
+        return props(producerDelay, consumerDelay, 50);
     }
 
     public static AppProperties props() {

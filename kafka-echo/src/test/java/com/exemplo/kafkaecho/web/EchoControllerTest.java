@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
@@ -15,10 +16,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.RejectedExecutionException;
 
 import com.exemplo.kafkaecho.TestProps;
 import com.exemplo.kafkaecho.correlation.PendingRequestRegistry;
 import com.exemplo.kafkaecho.producer.EchoProducerService;
+import com.exemplo.kafkaecho.producer.PublishExpiredException;
 import jakarta.servlet.AsyncEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,6 +29,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.availability.ApplicationAvailability;
+import org.springframework.boot.availability.ReadinessState;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockAsyncContext;
 import org.springframework.test.web.servlet.MockMvc;
@@ -38,13 +43,16 @@ class EchoControllerTest {
     @Mock
     private EchoProducerService producer;
 
+    @Mock
+    private ApplicationAvailability availability;
+
     private final PendingRequestRegistry registry = new PendingRequestRegistry();
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new EchoController(registry, producer, TestProps.props()))
+                .standaloneSetup(new EchoController(registry, producer, TestProps.props(), availability))
                 .build();
     }
 
@@ -122,6 +130,39 @@ class EchoControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(producer, never()).publish(anyString(), anyString());
+        assertThat(registry.size()).isZero();
+    }
+
+    @Test
+    void returnsServiceUnavailableWhenPublishQueueIsFull() throws Exception {
+        when(producer.publish(anyString(), anyString()))
+                .thenReturn(CompletableFuture.failedFuture(new RejectedExecutionException("fila cheia")));
+
+        MvcResult result = postMessage("{\"message\":\"hello\"}");
+
+        mockMvc.perform(asyncDispatch(result)).andExpect(status().isServiceUnavailable());
+        assertThat(registry.size()).isZero();
+    }
+
+    @Test
+    void returnsGatewayTimeoutWhenPublicationExpiredInQueue() throws Exception {
+        when(producer.publish(anyString(), anyString()))
+                .thenReturn(CompletableFuture.failedFuture(new PublishExpiredException("expirou")));
+
+        MvcResult result = postMessage("{\"message\":\"hello\"}");
+
+        mockMvc.perform(asyncDispatch(result)).andExpect(status().isGatewayTimeout());
+        assertThat(registry.size()).isZero();
+    }
+
+    @Test
+    void refusesNewRequestsWithServiceUnavailableWhileShuttingDown() throws Exception {
+        when(availability.getReadinessState()).thenReturn(ReadinessState.REFUSING_TRAFFIC);
+
+        mockMvc.perform(post("/api/echo").contentType(MediaType.APPLICATION_JSON).content("{\"message\":\"hello\"}"))
+                .andExpect(status().isServiceUnavailable());
+
+        verifyNoInteractions(producer);
         assertThat(registry.size()).isZero();
     }
 }

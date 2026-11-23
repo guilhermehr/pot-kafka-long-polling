@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: kafka-echo
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      # Cada instância usa um group.id novo; "latest" evita reprocessar o histórico do tópico.
+      auto-offset-reset: latest
+      # Lotes menores: com CONSUMER_DELAY, evita estourar max.poll.interval.ms (5 min) e causar rebalance.
+      max-poll-records: 50
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+server:
+  port: ${PORT:8080}
+
+app:
+  # Vazio = resolvido automaticamente (nome do pod no Kubernetes, ou <app-name>-<sufixo aleatório>).
+  instance-id: ${INSTANCE_ID:}
+  kafka:
+    topic: echo-events
+    partitions: 3
+    replication-factor: 1
+    group-prefix: echo-consumer
+    headers:
+      correlation-id: x-correlation-id
+      service-instance-id: x-service-instance-id
+  request:
+    # Tempo máximo que o endpoint aguarda a resposta vinda do Kafka (depois disso: 504).
+    timeout: ${REQUEST_TIMEOUT:10s}
+  # Atrasos artificiais, apenas para testes.
+  test-delay:
+    producer: ${PRODUCER_DELAY:0ms}   # não bloqueante, aplicado antes do envio ao Kafka
+    consumer: ${CONSUMER_DELAY:0ms}   # Thread.sleep no listener, só nos eventos desta instância (após o filtro)

@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.exemplo</groupId>
+    <artifactId>kafka-echo-jmeter</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>kafka-echo-jmeter</name>
+    <description>Teste de carga (concorrência e performance) do kafka-echo</description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- Parâmetros do teste; sobrescreva com -Djmeter.xxx=valor -->
+        <jmeter.host>localhost</jmeter.host>
+        <jmeter.ports>8081,8082</jmeter.ports>
+        <jmeter.threads>50</jmeter.threads>
+        <jmeter.rampup>10</jmeter.rampup>
+        <jmeter.duration>60</jmeter.duration>
+        <jmeter.timeoutms>5000</jmeter.timeoutms>
+        <!-- true = não falha o build quando houver requisições com erro (o relatório é gerado de qualquer forma) -->
+        <jmeter.ignore.failures>false</jmeter.ignore.failures>
+    </properties>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>com.lazerycode.jmeter</groupId>
+                <artifactId>jmeter-maven-plugin</artifactId>
+                <version>3.8.0</version>
+                <executions>
+                    <execution>
+                        <id>configuration</id>
+                        <goals>
+                            <goal>configure</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>jmeter-tests</id>
+                        <goals>
+                            <goal>jmeter</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>jmeter-check-results</id>
+                        <goals>
+                            <goal>results</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <generateReports>true</generateReports>
+                    <resultsFileFormat>csv</resultsFileFormat>
+                    <ignoreResultFailures>${jmeter.ignore.failures}</ignoreResultFailures>
+                    <testFilesIncluded>
+                        <jMeterTestFile>kafka-echo-load-test.jmx</jMeterTestFile>
+                    </testFilesIncluded>
+                    <propertiesUser>
+                        <HOST>${jmeter.host}</HOST>
+                        <PORTS>${jmeter.ports}</PORTS>
+                        <THREADS>${jmeter.threads}</THREADS>
+                        <RAMP_UP>${jmeter.rampup}</RAMP_UP>
+                        <DURATION>${jmeter.duration}</DURATION>
+                        <TIMEOUT_MS>${jmeter.timeoutms}</TIMEOUT_MS>
+                    </propertiesUser>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
